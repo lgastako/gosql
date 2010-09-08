@@ -10,78 +10,58 @@ class Client(object):
             connection = psycopg2.connect("dbname=gosql user=gosql")
         self.connection = connection
 
-    def get(self, key, default=None):
+    def _do_single_read(self, sql, *args):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT x_get(%s)", (key,))
-        (v,) = cursor.fetchone()
+        cursor.execute(sql, args)
+        results = cursor.fetchone()
         self.connection.rollback()
+        return results[0]
+
+    def _do_write(self, sql, *args):
+        cursor = self.connection.cursor()
+        cursor.execute(sql, args)
+        self.connection.commit()
+        cursor.close()
+
+    def _default(self, v, default):
         if v is None:
             return default
         return v
+
+    def get(self, key, default=None):
+        v = self._do_single_read("SELECT x_get(%s)", key)
+        return self._default(v, default)
 
     def set(self, key, value):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_put(%s, %s)", (key, value))
-        self.connection.commit()
-        cursor.close()
+        self._do_write("SELECT x_put(%s, %s)", key, value)
 
     def delete(self, key):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_del(%s)", (key,))
-        self.connection.commit()
-        cursor.close()
+        self._do_write("SELECT x_del(%s)", key)
 
     def lpush(self, key, element):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_lpush(%s, %s)", (key, element))
-        self.connection.commit()
-        cursor.close()
+        self._do_write("SELECT x_lpush(%s, %s)", key, element)
 
     def rpush(self, key, element):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_rpush(%s, %s)", (key, element))
-        self.connection.commit()
-        cursor.close()
+        self.do_write("SELECT x_rpush(%s, %s)", key, element)
 
     def lpop(self, key, default=None):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_lpop(%s)", (key,))
-        (v,) = cursor.fetchone()
-        self.connection.rollback()
-        if v is None:
-            return default
-        return v
+        v = self._do_single_read("SELECT x_lpop(%s)", key)
+        return self._default(v, default)
 
     def rpop(self, key, default=None):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_rpop(%s)", (key,))
-        (v,) = cursor.fetchone()
-        self.connection.rollback()
-        if v is None:
-            return default
-        return v
+        v = self._do_single_read("SELECT x_rpop(%s)", key)
+        return self._default(v, default)
 
     def exists(self, key):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_exists(%s)", (key,))
-        (v,) = cursor.fetchone()
-        self.connection.rollback()
+        v = self._do_single_read("SELECT x_exists(%s)", key)
         return bool(v)
 
     def rename(self, old_key, new_key):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_rename(%s, %s)", (old_key, new_key))
-        self.connection.commit()
-        cursor.close()
+        self._do_write("SELECT x_rename(%s, %s)", old_key, new_key)
 
     def renamenx(self, old_key, new_key):
-        cursor = self.connection.cursor()
-        cursor.execute("SELECT x_renamenx(%s, %s)", (old_key, new_key))
-        self.connection.commit()
-        cursor.close()
+        self._do_write("SELECT x_renamenx(%s, %s)", old_key, new_key)
 
-    def incr(self, key):
-        pass
-
-    def decr(self, key):
-        pass
+    def dbsize(self):
+        v  = self._do_single_read("SELECT x_dbsize()")
+        return v

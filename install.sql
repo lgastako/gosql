@@ -11,6 +11,7 @@ DROP FUNCTION IF EXISTS x_lpop(in_k TEXT);
 DROP FUNCTION IF EXISTS x_rpop(in_k TEXT);
 DROP FUNCTION IF EXISTS x_rename(old_k TEXT, new_k TEXT);
 DROP FUNCTION IF EXISTS x_renamenx(old_k TEXT, new_k TEXT);
+DROP FUNCTION IF EXISTS x_dbsize(old_k TEXT, new_k TEXT);
 
 CREATE TABLE kvs (
     k TEXT PRIMARY KEY,
@@ -205,6 +206,15 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
+CREATE FUNCTION x_dbsize() RETURNS INTEGER AS $$
+DECLARE
+    c INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO c FROM kvs;
+    RETURN c;
+END
+$$ LANGUAGE plpgsql;
+
 COMMIT;
 
 -- "Tests"
@@ -325,6 +335,19 @@ VALUES ('renamenx to existent key leaves original', x_get('aa') = 'bb');
 
 INSERT INTO tests (description, test_result)
 VALUES ('renamenx to existent key leaves destination', x_get('bb') = 'cc');
+
+-------------------
+TRUNCATE TABLE kvs;
+
+INSERT INTO tests (description, test_result)
+VALUES ('dbsize on empty db', x_dbsize() = 0);
+
+SELECT x_set('a', 'b');
+SELECT x_set('c', 'd');
+SELECT x_set('e', 'f');
+
+INSERT INTO tests (description, test_result)
+VALUES ('dbsize on non-empty db', x_dbsize() = 3);
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
