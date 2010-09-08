@@ -74,6 +74,12 @@ class Client(object):
         self.connection.commit()
         cursor.close()
 
+    def renamenx(self, old_key, new_key):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT x_renamenx(%s, %s)", (old_key, new_key))
+        self.connection.commit()
+        cursor.close()
+
     def incr(self, key):
         pass
 
