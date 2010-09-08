@@ -14,6 +14,7 @@ class Client(object):
         cursor = self.connection.cursor()
         cursor.execute("SELECT x_get(%s)", (key,))
         (v,) = cursor.fetchone()
+        self.connection.rollback()
         if v is None:
             return default
         return v
@@ -40,6 +41,7 @@ class Client(object):
         cursor = self.connection.cursor()
         cursor.execute("SELECT x_lpop(%s)", (key,))
         (v,) = cursor.fetchone()
+        self.connection.rollback()
         if v is None:
             return default
         return v
@@ -48,9 +50,17 @@ class Client(object):
         cursor = self.connection.cursor()
         cursor.execute("SELECT x_rpop(%s)", (key,))
         (v,) = cursor.fetchone()
+        self.connection.rollback()
         if v is None:
             return default
         return v
+
+    def exists(self, key):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT x_exists(%s)", (key,))
+        (v,) = cursor.fetchone()
+        self.connection.rollback()
+        return bool(v)
 
     def incr(self, key):
         pass

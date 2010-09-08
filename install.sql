@@ -1,6 +1,7 @@
 BEGIN;
 
 DROP TABLE IF EXISTS kvs;
+DROP FUNCTION IF EXISTS x_exists(in_k TEXT);
 DROP FUNCTION IF EXISTS x_get(in_k TEXT);
 DROP FUNCTION IF EXISTS x_set(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_lpush(in_k TEXT, in_v TEXT);
@@ -15,6 +16,18 @@ CREATE TABLE kvs (
     expiration TIMESTAMP WITHOUT TIME ZONE,
     CHECK(v IS NOT NULL OR a IS NOT NULL)
 );
+
+CREATE FUNCTION x_exists(in_k TEXT) RETURNS BOOLEAN AS $$
+DECLARE
+    c INTEGER;
+BEGIN
+    SELECT COUNT(*)
+    INTO c
+    FROM kvs
+    WHERE k = in_k;
+    RETURN c > 0;
+END
+$$ LANGUAGE plpgsql;
 
 CREATE FUNCTION x_get(in_k TEXT) RETURNS TEXT AS $$
 DECLARE
@@ -165,6 +178,12 @@ CREATE TABLE tests (
 SELECT x_set('a', 'b');
 
 INSERT INTO tests (description, test_result)
+VALUES ('existence check for existent key', x_exists('a') = True);
+
+INSERT INTO tests (description, test_result)
+VALUES ('existence check for non-existent key', x_exists('abc') = False);
+
+INSERT INTO tests (description, test_result)
 VALUES ('getting a valid key', x_get('a') = 'b');
 
 INSERT INTO tests (description, test_result)
@@ -193,5 +212,8 @@ VALUES ('rpop twice', x_rpop('r') = 'foo');
 
 INSERT INTO tests (description, test_result)
 VALUES ('rpop thrice', x_rpop('r') IS NULL);
+
+SELECT COUNT(*) FROM tests;
+SELECT COUNT(*) FROM tests WHERE test_result = True;
 
 END;
