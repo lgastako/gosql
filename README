@@ -13,13 +13,13 @@ LPUSH
 LPOP
 RPUSH
 RPOP
+DBSIZE
 
 Commands remaining to be implemented:
 
 TYPE
 KEYS
 RANDOMKEY
-DBSIZE
 EXPIRE
 PERSIST
 TTL
