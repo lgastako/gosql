@@ -4,11 +4,12 @@ DROP TABLE IF EXISTS kvs;
 DROP FUNCTION IF EXISTS x_exists(in_k TEXT);
 DROP FUNCTION IF EXISTS x_get(in_k TEXT);
 DROP FUNCTION IF EXISTS x_set(in_k TEXT, in_v TEXT);
-DROP FUNCTION IF EXISTS x_del(in_k TEXT, in_v TEXT);
+DROP FUNCTION IF EXISTS x_del(in_k TEXT);
 DROP FUNCTION IF EXISTS x_lpush(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_rpush(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_lpop(in_k TEXT);
 DROP FUNCTION IF EXISTS x_rpop(in_k TEXT);
+DROP FUNCTION IF EXISTS x_rename(old_k TEXT, new_k TEXT);
 
 CREATE TABLE kvs (
     k TEXT PRIMARY KEY,
@@ -172,6 +173,17 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
+CREATE FUNCTION x_rename(old_k TEXT, new_k TEXT) RETURNS VOID AS $$
+BEGIN
+    DELETE FROM kvs
+    WHERE k = new_k;
+
+    UPDATE kvs
+    SET k = new_k
+    WHERE k = old_k;
+END
+$$ LANGUAGE plpgsql;
+
 COMMIT;
 
 -- "Tests"
@@ -225,6 +237,20 @@ VALUES ('rpop twice', x_rpop('r') = 'foo');
 
 INSERT INTO tests (description, test_result)
 VALUES ('rpop thrice', x_rpop('r') IS NULL);
+
+SELECT x_set('a', 'b');
+SELECT x_rename('a', 'q');
+
+INSERT INTO tests (description, test_result)
+VALUES ('rename to non-existent key', x_get('q') = 'b');
+
+SELECT x_set('aa', 'bb');
+SELECT x_set('bb', 'cc');
+
+SELECT x_rename('aa', 'bb');
+
+INSERT INTO tests (description, test_result)
+VALUES ('rename to existent key', x_get('bb') = 'bb');
 
 SELECT COUNT(*) FROM tests;
 SELECT COUNT(*) FROM tests WHERE test_result = True;

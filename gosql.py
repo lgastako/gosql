@@ -68,6 +68,12 @@ class Client(object):
         self.connection.rollback()
         return bool(v)
 
+    def rename(self, old_key, new_key):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT x_rename(%s, %s)", (old_key, new_key))
+        self.connection.commit()
+        cursor.close()
+
     def incr(self, key):
         pass
 
