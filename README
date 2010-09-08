@@ -1,1 +1,2 @@
-A "NoSQL" solution built on top of Postgres.
+A "NoSQL" solution built on top of Postgres.  Specifically trying to match
+redis feature-for-feature.
