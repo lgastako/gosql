@@ -4,6 +4,7 @@ DROP TABLE IF EXISTS kvs;
 DROP FUNCTION IF EXISTS x_exists(in_k TEXT);
 DROP FUNCTION IF EXISTS x_get(in_k TEXT);
 DROP FUNCTION IF EXISTS x_set(in_k TEXT, in_v TEXT);
+DROP FUNCTION IF EXISTS x_del(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_lpush(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_rpush(in_k TEXT, in_v TEXT);
 DROP FUNCTION IF EXISTS x_lpop(in_k TEXT);
@@ -63,6 +64,13 @@ BEGIN
     ELSE
        INSERT INTO kvs (k, v) VALUES (in_k, in_v);
     END IF;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE FUNCTION x_del(in_k TEXT) RETURNS VOID AS $$
+BEGIN
+    DELETE FROM kvs
+    WHERE k = in_k;
 END
 $$ LANGUAGE plpgsql;
 
@@ -186,8 +194,13 @@ VALUES ('existence check for non-existent key', x_exists('abc') = False);
 INSERT INTO tests (description, test_result)
 VALUES ('getting a valid key', x_get('a') = 'b');
 
+SELECT x_del('a');
+
 INSERT INTO tests (description, test_result)
 VALUES ('getting an invalid key', x_get('c') IS NULL);
+
+INSERT INTO tests (description, test_result)
+VALUES ('deleting an existent key', x_get('a') IS NULL);
 
 SELECT x_lpush('r', 'foo');
 SELECT x_rpush('r', 'bar');

@@ -25,6 +25,12 @@ class Client(object):
         self.connection.commit()
         cursor.close()
 
+    def delete(self, key):
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT x_del(%s)", (key,))
+        self.connection.commit()
+        cursor.close()
+
     def lpush(self, key, element):
         cursor = self.connection.cursor()
         cursor.execute("SELECT x_lpush(%s, %s)", (key, element))
