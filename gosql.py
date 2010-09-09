@@ -12,7 +12,7 @@ class Client(object):
 
     def _do_single_read(self, sql, *args):
         cursor = self.connection.cursor()
-        print "SQL: %s" % cursor.mogrify(sql, args)
+        #print "SQL: %s" % cursor.mogrify(sql, args)
         cursor.execute(sql, args)
         results = cursor.fetchone()
         self.connection.rollback()
@@ -70,3 +70,6 @@ class Client(object):
     def mget(self, keys):
         v = self._do_single_read("SELECT x_mget(%s)", keys)
         return v
+
+    def expire(self, key, timestamp):
+        self._do_write("SELECT x_expire(%s, %s)", key, timestamp)

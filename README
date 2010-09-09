@@ -15,13 +15,13 @@ RPUSH
 RPOP
 DBSIZE
 MGET
+EXPIRE
 
 Commands remaining to be implemented:
 
 TYPE
 KEYS
 RANDOMKEY
-EXPIRE
 PERSIST
 TTL
 SELECT

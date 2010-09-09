@@ -249,6 +249,14 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
+CREATE FUNCTION x_expire(in_k TEXT, in_use_by TIMESTAMP WITHOUT TIME ZONE)
+     RETURNS VOID AS $$
+BEGIN
+    UPDATE kvs
+    SET use_by = in_use_by
+    WHERE k = in_k;
+END
+$$ LANGUAGE plpgsql;
 
 COMMIT;
 
@@ -403,6 +411,28 @@ SELECT x_set('c', 'd');
 INSERT INTO tests (description, test_result)
 VALUES ('mget on mixed existent/non-existent keys',
         x_mget(array['a', 'x', 'c']::TEXT[]) = array['b', NULL, 'd']::TEXT[]);
+
+-------------------
+TRUNCATE TABLE kvs;
+
+SELECT x_set('a', 'b');
+-- Warning, this test will become obselete in August 2169.
+SELECT x_expire('a'::TEXT, TIMESTAMP '2169-08-15 12:34:56');
+
+INSERT INTO tests (description, test_result)
+VALUES ('can fetch non-expired result', x_get('a') = 'b');
+
+-------------------
+TRUNCATE TABLE kvs;
+
+SELECT x_set('a', 'b');
+-- Warning, this test will become obselete in August 2169.
+SELECT x_expire('a'::TEXT, TIMESTAMP '2008-08-15 12:34:56');
+
+INSERT INTO tests (description, test_result)
+VALUES ('can NOT fetch expired result', x_get('a') IS NULL);
+
+
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
