@@ -1,6 +1,7 @@
 BEGIN;
 
 DROP TABLE IF EXISTS kvs;
+DROP FUNCTION IF EXISTS expired(ts TIMESTAMP WITHOUT TIME ZONE);
 DROP FUNCTION IF EXISTS x_exists(in_k TEXT);
 DROP FUNCTION IF EXISTS x_get(in_k TEXT);
 DROP FUNCTION IF EXISTS x_set(in_k TEXT, in_v TEXT);
@@ -11,15 +12,26 @@ DROP FUNCTION IF EXISTS x_lpop(in_k TEXT);
 DROP FUNCTION IF EXISTS x_rpop(in_k TEXT);
 DROP FUNCTION IF EXISTS x_rename(old_k TEXT, new_k TEXT);
 DROP FUNCTION IF EXISTS x_renamenx(old_k TEXT, new_k TEXT);
-DROP FUNCTION IF EXISTS x_dbsize(old_k TEXT, new_k TEXT);
+DROP FUNCTION IF EXISTS x_dbsize();
+DROP FUNCTION IF EXISTS x_mget(in_ks TEXT[]);
 
 CREATE TABLE kvs (
     k TEXT PRIMARY KEY,
     v TEXT,
     a TEXT[],
-    expiration TIMESTAMP WITHOUT TIME ZONE,
+    use_by TIMESTAMP WITHOUT TIME ZONE,
     CHECK(v IS NOT NULL OR a IS NOT NULL)
 );
+
+CREATE FUNCTION expired(ts TIMESTAMP WITHOUT TIME ZONE) RETURNS BOOLEAN AS $$
+BEGIN
+    IF ts IS NULL THEN
+        RETURN False;
+    ELSE
+        RETURN ts < NOW();
+    END IF;
+END
+$$ LANGUAGE plpgsql;
 
 CREATE FUNCTION x_exists(in_k TEXT) RETURNS BOOLEAN AS $$
 DECLARE
@@ -40,13 +52,10 @@ BEGIN
     SELECT *
     INTO t_row
     FROM kvs
-    WHERE k = in_k;
+    WHERE k = in_k
+    AND NOT expired(use_by);
 
-    IF t_row.expiration < NOW() THEN
-        RETURN NULL;
-    ELSE
-        RETURN t_row.v;
-    END IF;
+    RETURN t_row.v;
 END
 $$ LANGUAGE plpgsql;
 
@@ -62,7 +71,7 @@ BEGIN
     IF c > 0 THEN
        UPDATE kvs
        SET v = in_v,
-           expiration = NULL
+           use_by = NULL
        WHERE k = in_k;
     ELSE
        INSERT INTO kvs (k, v) VALUES (in_k, in_v);
@@ -128,11 +137,11 @@ DECLARE
     t_row kvs%ROWTYPE;
     a_len INTEGER;
 BEGIN
-    -- TODO: test expiration
     SELECT *
     INTO t_row
     FROM kvs
-    WHERE k = in_k;
+    WHERE k = in_k
+    AND NOT expired(use_by);
 
     a_len := array_length(t_row.a, 1);
 
@@ -154,11 +163,11 @@ DECLARE
     t_row kvs%ROWTYPE;
     a_len INTEGER;
 BEGIN
-    -- TODO: test expiration
     SELECT *
     INTO t_row
     FROM kvs
-    WHERE k = in_k;
+    WHERE k = in_k
+    AND NOT expired(use_by);
 
     a_len := array_length(t_row.a, 1);
 
@@ -214,6 +223,32 @@ BEGIN
     RETURN c;
 END
 $$ LANGUAGE plpgsql;
+
+CREATE FUNCTION x_mget(in_ks TEXT[]) RETURNS TEXT[] AS $$
+DECLARE
+    t_row kvs%ROWTYPE;
+    res TEXT[];
+    idx INTEGER;
+    len INTEGER;
+BEGIN
+    len := array_length(in_ks, 1);
+    res := array_fill(NULL::TEXT, ARRAY[len]);
+    FOR t_row IN SELECT *
+                 FROM kvs
+                 WHERE in_ks @> ARRAY[k]
+                 AND NOT expired(use_by)
+    LOOP
+        FOR idx IN 1 .. len
+        LOOP
+            IF t_row.k = in_ks[idx] THEN
+              res[idx] = t_row.v;
+            END IF;
+        END LOOP;
+    END LOOP;
+    RETURN res;
+END
+$$ LANGUAGE plpgsql;
+
 
 COMMIT;
 
@@ -348,6 +383,26 @@ SELECT x_set('e', 'f');
 
 INSERT INTO tests (description, test_result)
 VALUES ('dbsize on non-empty db', x_dbsize() = 3);
+
+-------------------
+TRUNCATE TABLE kvs;
+
+SELECT x_set('a', 'b');
+SELECT x_set('c', 'd');
+
+INSERT INTO tests (description, test_result)
+VALUES ('mget on multiple existent keys',
+        x_mget(array['a', 'c']::TEXT[]) = array['b', 'd']::TEXT[]);
+
+-------------------
+TRUNCATE TABLE kvs;
+
+SELECT x_set('a', 'b');
+SELECT x_set('c', 'd');
+
+INSERT INTO tests (description, test_result)
+VALUES ('mget on mixed existent/non-existent keys',
+        x_mget(array['a', 'x', 'c']::TEXT[]) = array['b', NULL, 'd']::TEXT[]);
 
 --------------------------------------------------------------------
 --------------------------------------------------------------------

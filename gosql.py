@@ -12,6 +12,7 @@ class Client(object):
 
     def _do_single_read(self, sql, *args):
         cursor = self.connection.cursor()
+        print "SQL: %s" % cursor.mogrify(sql, args)
         cursor.execute(sql, args)
         results = cursor.fetchone()
         self.connection.rollback()
@@ -33,7 +34,7 @@ class Client(object):
         return self._default(v, default)
 
     def set(self, key, value):
-        self._do_write("SELECT x_put(%s, %s)", key, value)
+        self._do_write("SELECT x_set(%s, %s)", key, value)
 
     def delete(self, key):
         self._do_write("SELECT x_del(%s)", key)
@@ -63,5 +64,9 @@ class Client(object):
         self._do_write("SELECT x_renamenx(%s, %s)", old_key, new_key)
 
     def dbsize(self):
-        v  = self._do_single_read("SELECT x_dbsize()")
+        v = self._do_single_read("SELECT x_dbsize()")
+        return v
+
+    def mget(self, keys):
+        v = self._do_single_read("SELECT x_mget(%s)", keys)
         return v

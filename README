@@ -14,6 +14,7 @@ LPOP
 RPUSH
 RPOP
 DBSIZE
+MGET
 
 Commands remaining to be implemented:
 
@@ -28,7 +29,6 @@ MOVE
 FLUSHDB
 FLUSHALL
 GETSET
-MGET
 SETNX
 SETEX
 MSET
@@ -100,3 +100,7 @@ INFO
 MONITOR
 SLAVEOF
 CONFIG
+
+Pre-requisites: The uuid-oosp module from contrib:
+Installation is something like:
+psql gosql gosql  < /usr/share/postgresql/8.4/contrib/uuid-ossp.sql
